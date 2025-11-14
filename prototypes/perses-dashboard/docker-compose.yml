@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # Perses Dashboard Server
+  perses:
+    image: persesdev/perses:latest
+    container_name: rhoai-perses
+    ports:
+      - "8080:8080"
+    environment:
+      - PERSES_SECURITY_ENABLE_AUTH=false
+    depends_on:
+      - prometheus
+    networks:
+      - rhoai-observability
+
+  # Prometheus Metrics Backend
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rhoai-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prom-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - rhoai-observability
+
+  # Mock Metrics Generator (simulates RHOAI/GPU/KServe metrics)
+  mock-metrics:
+    build:
+      context: ./mock-metrics
+      dockerfile: Dockerfile
+    container_name: rhoai-mock-metrics
+    ports:
+      - "8000:8000"
+    environment:
+      - NUM_NODES=5
+      - NUM_GPUS_PER_NODE=4
+      - NUM_NAMESPACES=8
+      - NUM_MODELS=12
+    networks:
+      - rhoai-observability
+
+volumes:
+  prom-data:
+
+networks:
+  rhoai-observability:
+    driver: bridge

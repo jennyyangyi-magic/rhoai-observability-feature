@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'rhoai-demo-cluster'
+    environment: 'prototype'
+
+scrape_configs:
+  # Scrape mock RHOAI metrics generator
+  - job_name: 'rhoai-mock-metrics'
+    static_configs:
+      - targets: ['mock-metrics:8000']
+        labels:
+          cluster: 'prod-cluster-01'
+    scrape_interval: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

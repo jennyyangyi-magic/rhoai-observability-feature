@@ -1,0 +1,622 @@
+{
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "cluster-admin-infrastructure",
+    "project": "rhoai-observability",
+    "version": 1
+  },
+  "spec": {
+    "display": {
+      "name": "Cluster Admin - Infrastructure Observability"
+    },
+    "duration": "1h",
+    "refreshInterval": "30s",
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "cluster",
+          "display": {
+            "name": "Cluster",
+            "description": "Select cluster"
+          },
+          "defaultValue": "prod-cluster-01",
+          "allowAllValue": false,
+          "allowMultiple": false,
+          "plugin": {
+            "kind": "PrometheusLabelValuesVariable",
+            "spec": {
+              "labelName": "cluster",
+              "matchers": []
+            }
+          }
+        }
+      },
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "namespace",
+          "display": {
+            "name": "Namespace",
+            "description": "Filter by namespace"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "plugin": {
+            "kind": "PrometheusLabelValuesVariable",
+            "spec": {
+              "labelName": "namespace",
+              "matchers": ["{cluster=\"$cluster\"}"]
+            }
+          }
+        }
+      }
+    ],
+    "panels": {
+      "overall_health": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Overall Cluster Health",
+            "description": "Cluster health status across four dimensions: Node, Workload, Resource, Performance"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "unit": "decimal",
+                "decimalPlaces": 0
+              },
+              "thresholds": {
+                "steps": [
+                  {"value": 0, "color": "red", "name": "Critical"},
+                  {"value": 1, "color": "yellow", "name": "Degraded"},
+                  {"value": 2, "color": "green", "name": "Healthy"}
+                ]
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "min(kube_node_status_condition{cluster=\"$cluster\", condition=\"Ready\", status=\"true\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "total_gpu_utilization": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cluster GPU Utilization",
+            "description": "Average GPU utilization across all nodes"
+          },
+          "plugin": {
+            "kind": "GaugeChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "unit": "percent",
+                "decimalPlaces": 1
+              },
+              "thresholds": {
+                "defaultColor": "green",
+                "steps": [
+                  {"value": 70, "color": "yellow"},
+                  {"value": 85, "color": "red"}
+                ]
+              },
+              "max": 100
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\"}) * 100"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "active_models": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Total Active Models",
+            "description": "Number of active InferenceService instances"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "unit": "decimal",
+                "decimalPlaces": 0
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "count(kserve_model_info{cluster=\"$cluster\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "request_success_rate": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Request Success Rate",
+            "description": "Percentage of successful requests in last 24h"
+          },
+          "plugin": {
+            "kind": "StatChart",
+            "spec": {
+              "calculation": "last",
+              "format": {
+                "unit": "percent",
+                "decimalPlaces": 2
+              },
+              "thresholds": {
+                "defaultColor": "red",
+                "steps": [
+                  {"value": 95, "color": "yellow"},
+                  {"value": 99, "color": "green"}
+                ]
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum(rate(istio_requests_total{cluster=\"$cluster\", response_code=~\"2..\"}[24h])) / sum(rate(istio_requests_total{cluster=\"$cluster\"}[24h])) * 100"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "node_status_table": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Node Status Overview",
+            "description": "Status of all nodes with GPU count and utilization"
+          },
+          "plugin": {
+            "kind": "Table",
+            "spec": {
+              "density": "comfortable"
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "kube_node_info{cluster=\"$cluster\"}"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "kube_node_status_condition{cluster=\"$cluster\", condition=\"Ready\"}"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "count by (node) (DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\"})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "gpu_utilization_trends": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Resource Utilization Trends",
+            "description": "GPU, CPU, and Memory utilization over time"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom",
+                "mode": "list"
+              },
+              "tooltip": {
+                "enablePinning": true
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "percent"
+                },
+                "min": 0,
+                "max": 100
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\"}) * 100",
+                    "seriesNameFormat": "GPU Utilization"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(1 - rate(node_cpu_seconds_total{cluster=\"$cluster\", mode=\"idle\"}[5m])) * 100",
+                    "seriesNameFormat": "CPU Utilization"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(1 - (node_memory_MemAvailable_bytes{cluster=\"$cluster\"} / node_memory_MemTotal_bytes{cluster=\"$cluster\"})) * 100",
+                    "seriesNameFormat": "Memory Utilization"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "gpu_utilization_by_namespace": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "GPU Utilization by Namespace",
+            "description": "GPU usage breakdown by namespace over time"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "right",
+                "mode": "list"
+              },
+              "tooltip": {
+                "enablePinning": true
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "percent"
+                },
+                "min": 0
+              },
+              "visual": {
+                "display": "line",
+                "lineWidth": 2,
+                "areaOpacity": 0.5,
+                "showPoints": "auto",
+                "stack": "all"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum by (namespace) (DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\", namespace=~\"$namespace\"}) * 100",
+                    "seriesNameFormat": "{{namespace}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "gpu_temperature": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "GPU Temperature & Power",
+            "description": "GPU temperature and power consumption across cluster"
+          },
+          "plugin": {
+            "kind": "TimeSeriesChart",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "yAxis": {
+                "format": {
+                  "unit": "decimal"
+                },
+                "label": "Temperature (°C)"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "avg(DCGM_FI_DEV_GPU_TEMP{cluster=\"$cluster\"})",
+                    "seriesNameFormat": "Avg Temperature"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "max(DCGM_FI_DEV_GPU_TEMP{cluster=\"$cluster\"})",
+                    "seriesNameFormat": "Max Temperature"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "resource_allocation_vs_usage": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Resource Allocation vs Usage",
+            "description": "Comparison of allocated vs used resources by namespace"
+          },
+          "plugin": {
+            "kind": "BarChart",
+            "spec": {
+              "calculation": "last",
+              "mode": "value"
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum by (namespace) (kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"nvidia_com_gpu\", namespace=~\"$namespace\"})",
+                    "seriesNameFormat": "{{namespace}} - Allocated"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "sum by (namespace) (DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\", namespace=~\"$namespace\"}) / 100 * sum by (namespace) (kube_pod_container_resource_requests{cluster=\"$cluster\", resource=\"nvidia_com_gpu\", namespace=~\"$namespace\"})",
+                    "seriesNameFormat": "{{namespace}} - Used"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "top_resource_consumers": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Top Resource Consumers",
+            "description": "Top namespaces by GPU hours consumed"
+          },
+          "plugin": {
+            "kind": "Table",
+            "spec": {
+              "density": "compact"
+            }
+          },
+          "queries": [
+            {
+              "kind": "TimeSeriesQuery",
+              "spec": {
+                "plugin": {
+                  "kind": "PrometheusTimeSeriesQuery",
+                  "spec": {
+                    "query": "topk(10, sum by (namespace) (increase(DCGM_FI_DEV_GPU_UTIL{cluster=\"$cluster\"}[24h])) / 100)"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Executive Summary",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/overall_health"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/total_gpu_utilization"
+              }
+            },
+            {
+              "x": 12,
+              "y": 0,
+              "width": 6,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/active_models"
+              }
+            },
+            {
+              "x": 18,
+              "y": 0,
+              "width": 6,
+              "height": 4,
+              "content": {
+                "$ref": "#/spec/panels/request_success_rate"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Node & Infrastructure Health",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/node_status_table"
+              }
+            },
+            {
+              "x": 0,
+              "y": 8,
+              "width": 24,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/gpu_utilization_trends"
+              }
+            },
+            {
+              "x": 0,
+              "y": 14,
+              "width": 24,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/gpu_temperature"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Resource Utilization & Capacity",
+            "collapse": {
+              "open": true
+            }
+          },
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/gpu_utilization_by_namespace"
+              }
+            },
+            {
+              "x": 0,
+              "y": 8,
+              "width": 12,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/resource_allocation_vs_usage"
+              }
+            },
+            {
+              "x": 12,
+              "y": 8,
+              "width": 12,
+              "height": 8,
+              "content": {
+                "$ref": "#/spec/panels/top_resource_consumers"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
