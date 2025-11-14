@@ -46,7 +46,7 @@
             "kind": "PrometheusLabelValuesVariable",
             "spec": {
               "labelName": "namespace",
-              "matchers": ["cluster=\"$cluster\""]
+              "matchers": ["{cluster=\"$cluster\"}"]
             }
           }
         }
@@ -380,23 +380,12 @@
               "legend": {
                 "position": "bottom"
               },
-              "yAxis": [
-                {
-                  "format": {
-                    "unit": "celsius"
-                  },
-                  "label": "Temperature (°C)",
-                  "min": 0,
-                  "max": 100
+              "yAxis": {
+                "format": {
+                  "unit": "decimal"
                 },
-                {
-                  "format": {
-                    "unit": "watt"
-                  },
-                  "label": "Power (W)",
-                  "show": true
-                }
-              ]
+                "label": "Temperature (°C)"
+              }
             }
           },
           "queries": [
@@ -420,19 +409,6 @@
                   "spec": {
                     "query": "max(DCGM_FI_DEV_GPU_TEMP{cluster=\"$cluster\"})",
                     "seriesNameFormat": "Max Temperature"
-                  }
-                }
-              }
-            },
-            {
-              "kind": "TimeSeriesQuery",
-              "spec": {
-                "plugin": {
-                  "kind": "PrometheusTimeSeriesQuery",
-                  "spec": {
-                    "query": "avg(DCGM_FI_DEV_POWER_USAGE{cluster=\"$cluster\"})",
-                    "seriesNameFormat": "Avg Power",
-                    "yAxisIndex": 1
                   }
                 }
               }
@@ -641,22 +617,6 @@
           ]
         }
       }
-    ],
-    "datasources": {
-      "prometheus": {
-        "default": true,
-        "plugin": {
-          "kind": "PrometheusDatasource",
-          "spec": {
-            "proxy": {
-              "kind": "HTTPProxy",
-              "spec": {
-                "url": "http://prometheus:9090"
-              }
-            }
-          }
-        }
-      }
-    }
+    ]
   }
 }
